@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  db:
+    image: mysql:8.0
+    cap_add:
+      - SYS_NICE
+    restart: always
+    environment:
+      - MYSQL_DATABASE=jvc_topic_scrapping_db
+      - MYSQL_ROOT_PASSWORD=lama
+    ports:
+      - '3306:3306'
+    volumes:
+      - ./my_sql_db:/docker-entrypoint-initdb.d/init.sql
+volumes:
+  db:
+    driver: local

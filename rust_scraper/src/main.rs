@@ -1,5 +1,6 @@
 use scraper::{Html, Selector};
 use std::process;
+
 #[derive(Debug)]
 struct TitleLink {
     title: String,
@@ -119,5 +120,3 @@ async fn extract_message_topax(link: String) -> Result<Vec<String>, Box<dyn std:
     }
     Ok(messages_topax)
 }
-
-//fn write_into_db(topax_info: TopaxInfo) {}

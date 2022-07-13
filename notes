@@ -1,0 +1,7 @@
+Start db container:
+
+docker run --name jvc_topics_db -v ~/jvc_topic_scrapping/my_sql_db:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=lama -e MYSQL_DATABASE=jvc_topics_db -p 3306:3306 -it mysql:8.0
+
+Launch db for debug:
+
+docker exec -it jvc_topics_db /bin/bash
