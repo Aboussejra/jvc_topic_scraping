@@ -1,3 +1,4 @@
+use mysql::{params, prelude::Queryable, Pool};
 use scraper::{Html, Selector};
 use std::process;
 
@@ -19,9 +20,9 @@ struct TopaxInfo {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base_url = "https://www.jeuxvideo.com";
     let list_topax = base_url.to_owned() + "/forums/0-51-0-1-0-1-0-blabla-18-25-ans.htm";
-    let get_messages_on_topax = false;
+    //let get_messages_on_topax = false;
+    //let mut temp_struct_vec_messages = vec![];
     let mut topax_info_list = vec![];
-    let mut temp_struct_vec_messages = vec![];
     let resp = match reqwest::get(list_topax).await {
         Ok(x) => x,
         Err(_) => {
@@ -78,21 +79,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    if get_messages_on_topax {
-        for topax_info in topax_info_list.iter() {
-            match extract_message_topax(topax_info.link.clone()).await {
-                Ok(vec_messages) => temp_struct_vec_messages.push(vec_messages),
-                Err(e) => println!("Err {} occured", e),
-            };
-        }
-        for (temp_vec_messages, topax_info) in temp_struct_vec_messages
-            .iter_mut()
-            .zip(topax_info_list.iter_mut())
-        {
-            topax_info.messages_info = temp_vec_messages.to_vec();
-        }
-    }
-    println!("Topax infos are {:?}", topax_info_list);
+    connect_db(topax_info_list)?;
+    // for topax_info in topax_info_list.iter() {
+    //     match extract_message_topax(topax_info.link.clone()).await {
+    //         Ok(vec_messages) => temp_struct_vec_messages.push(vec_messages),
+    //         Err(e) => println!("Err {} occured", e),
+    //     };
+    // }
+    // for (temp_vec_messages, topax_info) in temp_struct_vec_messages
+    //     .iter_mut()
+    //     .zip(topax_info_list.iter_mut())
+    // {
+    //     topax_info.messages_info = temp_vec_messages.to_vec();
+    // }
     Ok(())
 }
 
@@ -111,12 +110,42 @@ async fn extract_message_topax(link: String) -> Result<Vec<String>, Box<dyn std:
     let message_in_block_selector = Selector::parse("div.txt-msg").unwrap();
     if let Some(elem) = document.select(&bloc_message_selector).next() {
         let mut message_selected = elem.select(&message_in_block_selector);
-        if let Some(message) = message_selected
-            .next()
-            .map(|message| message.inner_html())
-        {
+        if let Some(message) = message_selected.next().map(|message| message.inner_html()) {
             messages_topax.push(message);
         }
     }
     Ok(messages_topax)
+}
+
+fn connect_db(
+    topax_info_list: Vec<TopaxInfo>,
+) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    let url = "mysql://root:lama@localhost:3306/jvc_topic_scrapping_db";
+    let pool = Pool::new(url)?;
+
+    let mut conn = pool.get_conn()?;
+    // Let's create a table for payments.
+    match conn.query_drop(
+        r"CREATE TABLE topax_data (
+            title VARCHAR(500) not null PRIMARY KEY,
+            link VARCHAR(500) not null,
+            count int not null
+        )",
+    ) {
+        Ok(()) => println!("Table created"),
+        Err(_) => println!("Table already exists"),
+    };
+    // Now let's insert the topax info into the table if not already found.
+    conn.exec_batch(
+        r"INSERT IGNORE INTO topax_data (title, link, count)
+          VALUES (:title, :link, :count)",
+        topax_info_list.iter().map(|topax| {
+            params! {
+                "title" => topax.title.clone(),
+                "link" => topax.link.clone(),
+                "count" => topax.count,
+            }
+        }),
+    )?;
+    Ok(())
 }
