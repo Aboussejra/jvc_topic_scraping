@@ -1,6 +1,7 @@
 use mysql::{params, prelude::Queryable, Pool};
 use scraper::{Html, Selector};
 use std::process;
+use actix_web::{get, web, App, HttpServer};
 
 #[derive(Debug)]
 struct TitleLink {
@@ -16,8 +17,8 @@ struct TopaxInfo {
     messages_info: Vec<String>,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[get("/do_work")]
+async fn do_work() -> Result<&'static str, Box<dyn std::error::Error>> {
     let base_url = "https://www.jeuxvideo.com";
     let list_topax = base_url.to_owned() + "/forums/0-51-0-1-0-1-0-blabla-18-25-ans.htm";
     //let get_messages_on_topax = false;
@@ -92,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // {
     //     topax_info.messages_info = temp_vec_messages.to_vec();
     // }
-    Ok(())
+    Ok("Done")
 }
 
 async fn extract_message_topax(link: String) -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -148,4 +149,16 @@ fn connect_db(
         }),
     )?;
     Ok(())
+}
+
+#[actix_web::main] // or #[tokio::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        App::new()
+            .route("/", web::get().to(|| async { "Hello World!" }))
+            .service(do_work)
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
 }
